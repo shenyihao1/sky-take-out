@@ -37,20 +37,16 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler
     public Result exceptionHandler(SQLIntegrityConstraintViolationException ex){
-        log.error("SQL约束异常：{}", ex.getMessage());
-        // MySQL 1062 表示唯一键冲突，仅将用户名索引冲突提示为用户已存在。
-        if (ex.getErrorCode() == 1062 && ex.getMessage() != null) {
-            // 兼容 idx_username 和 employee.idx_username 等索引名称，捕获组 1 为重复账号。
-            Matcher matcher = Pattern.compile(
-                    "^Duplicate entry '(.+)' for key '(?:[^']+\\.)?idx_username'$",
-                    Pattern.DOTALL).matcher(ex.getMessage());
-            if (matcher.matches()) {
-                // 沿用前端现有约定：HTTP 200、业务码 0，并通过 msg 展示失败原因。
-                return Result.error("用户 " + matcher.group(1) + " 已存在");
-            }
+        String message=ex.getMessage();
+        if(message.contains("Duplicate entry")){
+            String[] split=message.split(" ");
+            String username=split[2];
+            String msg =username+MessageConstant.ALREADY_EXISTS;
+            return Result.error(msg);
         }
-        // 其他约束错误或无法识别的消息不误报为用户重复，也不向前端暴露 SQL 细节。
-        return Result.error(MessageConstant.UNKNOWN_ERROR);
+        else{
+            return Result.error(MessageConstant.UNKNOWN_ERROR);
+        }
     }
 
 }
