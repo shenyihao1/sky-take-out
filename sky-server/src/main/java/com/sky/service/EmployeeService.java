@@ -25,4 +25,11 @@ public interface EmployeeService {
      * 员工分页查询
      */
     PageResult pageQuery(EmployeePageQueryDTO employeePageQueryDTO);
+
+    /**
+     * 启用禁用员工账号。
+     * @param status 1 为启用，0 为禁用
+     * @param id 员工主键
+     */
+    void startOrStop(Integer status, Long id);
 }

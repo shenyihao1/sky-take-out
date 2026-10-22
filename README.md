@@ -46,3 +46,41 @@ mvn -pl sky-server -am test -Dtest=GlobalExceptionHandlerTest -Dsurefire.failIfN
 共 10 项测试：3 种索引名称、Spring 包装异常、其他唯一键冲突、外键失败、空异常消息、不匹配的异常消息、原有业务异常响应和新增成功响应。
 
 测试使用 MockMvc 和模拟服务，不连接真实数据库，不写入员工数据，也不覆盖 JWT 鉴权。真实页面验证需重启更新后的后端，并使用有效登录态提交一个已存在的账号，预期显示“用户 xx 已存在”。
+
+## 启用、禁用员工账号
+
+### 接口与功能
+
+`POST /admin/employee/status/{status}?id={员工ID}`，携带登录得到的 `token` 请求头，无需 JSON 请求体。现有管理端按钮通过 Nginx 的 `/api/employee/status/{status}` 调用这个接口。
+
+- `status=0`：禁用账号；之后使用该账号登录会返回“账号被锁定”。
+- `status=1`：启用账号；恢复正常登录。
+- 状态实际变化时更新 `status`、`update_time` 和 `update_user`，操作人取自 JWT 拦截器设置的 `BaseContext`，不接受客户端指定操作人。
+- 重复提交相同状态返回成功，不重复写入；用户名、密码和其他员工资料保持原样。
+- 仅接受状态 `0/1` 与正整数员工 ID；员工不存在、修改管理员 `admin` 或更新未命中记录时均不返回成功。数据库更新条件也排除了 `admin`，防止绕过页面保护。
+
+示例：禁用员工 7：`POST /admin/employee/status/0?id=7`；重新启用：`POST /admin/employee/status/1?id=7`。
+
+成功响应为 HTTP 200、`{"code":1,"msg":null,"data":null}`。本接口的业务校验失败响应为 HTTP 400、`{"code":0,"msg":"具体原因","data":null}`；缺失或类型错误的请求参数由 Spring 返回 HTTP 400。因为现有前端只根据 HTTP 200 判断状态修改成功，这样可以避免失败时错误显示“账号状态更改成功”。当前前端对 HTTP 400 显示通用请求错误，具体原因可查看响应的 `msg`。此调整仅作用于状态修改接口。
+
+### 修改文件与原因
+
+| 文件 | 作用 |
+| --- | --- |
+| [EmployeeController.java](sky-server/src/main/java/com/sky/controller/admin/EmployeeController.java) | 接收路径中的状态和查询参数中的员工 ID，返回适配现有前端的成功或失败响应。 |
+| [EmployeeService.java](sky-server/src/main/java/com/sky/service/EmployeeService.java) | 声明状态切换方法，保持现有 Controller → Service → Mapper 分层。 |
+| [EmployeeServiceImpl.java](sky-server/src/main/java/com/sky/service/impl/EmployeeServiceImpl.java) | 校验参数、操作人及目标账号，保护管理员，记录操作信息并检查更新结果。 |
+| [EmployeeMapper.java](sky-server/src/main/java/com/sky/mapper/EmployeeMapper.java) | 按 ID 查询目标账号，并使用参数绑定只更新状态和操作信息。 |
+| [EmployeeStatusTest.java](sky-server/src/test/java/com/sky/EmployeeStatusTest.java) | 验证接口、业务校验、状态与登录联动，以及真实 MyBatis 参数绑定。 |
+
+### 测试与适用范围
+
+```sh
+mvn -pl sky-server -am test -Dtest=EmployeeStatusTest,EmployeePageQueryTest,WebMvcDateFormatTest -Dsurefire.failIfNoSpecifiedTests=false
+```
+
+测试模拟数据库访问，不写入真实员工数据；MyBatis 参数绑定测试使用模拟的 JDBC Statement。页面验收时，重启后端，用已登录账号在员工管理页面切换普通员工状态，检查列表状态、最后操作时间，并分别验证禁用和启用后的登录行为。
+
+本功能沿用项目现有鉴权方式：禁用会阻止后续登录，但不会主动撤销已经签发且未过期的 JWT。立即踢下线需要额外的令牌失效或请求状态校验机制，不在本次范围内。
+
+实现前的全量测试已有 6 项失败，均来自 `GlobalExceptionHandlerTest`（重复账号提示与预期不一致、空异常消息等）。这些与本功能无关，本次保留原有 SQL 异常处理与测试。

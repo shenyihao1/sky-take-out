@@ -5,6 +5,7 @@ import com.sky.dto.EmployeeDTO;
 import com.sky.dto.EmployeeLoginDTO;
 import com.sky.dto.EmployeePageQueryDTO;
 import com.sky.entity.Employee;
+import com.sky.exception.BaseException;
 import com.sky.properties.JwtProperties;
 import com.sky.result.PageResult;
 import com.sky.result.Result;
@@ -14,6 +15,9 @@ import com.sky.vo.EmployeeLoginVO;
 import io.swagger.annotations.ApiOperation;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -97,5 +101,22 @@ public class EmployeeController {
                 employeePageQueryDTO.getName());
         PageResult pageResult = employeeService.pageQuery(employeePageQueryDTO);
         return Result.success(pageResult);
+    }
+
+    /**
+     * 启用或禁用员工：状态在路径中，员工 ID 使用查询参数传递，与现有前端一致。
+     */
+    @PostMapping("/status/{status}")
+    @ApiOperation("启用禁用员工账号")
+    public ResponseEntity<Result<String>> startOrStop(@PathVariable("status") Integer status,
+                                                     @RequestParam("id") Long id) {
+        log.info("修改员工状态：id={}，status={}", id, status);
+        try {
+            employeeService.startOrStop(status, id);
+            return ResponseEntity.ok(Result.<String>success());
+        } catch (BaseException ex) {
+            // 前端以 HTTP 200 判断成功，校验失败需返回非 200，避免误报状态修改成功。
+            return ResponseEntity.badRequest().body(Result.<String>error(ex.getMessage()));
+        }
     }
 }

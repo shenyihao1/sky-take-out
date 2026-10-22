@@ -12,6 +12,7 @@ import com.sky.dto.EmployeePageQueryDTO;
 import com.sky.entity.Employee;
 import com.sky.exception.AccountLockedException;
 import com.sky.exception.AccountNotFoundException;
+import com.sky.exception.BaseException;
 import com.sky.exception.PasswordErrorException;
 import com.sky.mapper.EmployeeMapper;
 import com.sky.result.PageResult;
@@ -94,5 +95,43 @@ public class EmployeeServiceImpl implements EmployeeService {
         PageHelper.startPage(employeePageQueryDTO.getPage(), employeePageQueryDTO.getPageSize());
         Page<Employee> page = employeeMapper.pageQuery(employeePageQueryDTO);
         return new PageResult(page.getTotal(), page.getResult());
+    }
+
+    /**
+     * 校验状态和目标员工，只更新状态及操作信息，保留账号的其他资料。
+     */
+    @Override
+    public void startOrStop(Integer status, Long id) {
+        if (!StatusConstant.ENABLE.equals(status) && !StatusConstant.DISABLE.equals(status)) {
+            throw new BaseException("员工状态只能为0（禁用）或1（启用）");
+        }
+        if (id == null || id <= 0) {
+            throw new BaseException("员工ID必须为正整数");
+        }
+        Long operatorId = BaseContext.getCurrentId();
+        if (operatorId == null) {
+            throw new BaseException(MessageConstant.USER_NOT_LOGIN);
+        }
+        Employee employee = employeeMapper.getById(id);
+        if (employee == null) {
+            throw new AccountNotFoundException(MessageConstant.ACCOUNT_NOT_FOUND);
+        }
+        // 前端已禁止操作 admin，后端同样校验，防止直接调用接口绕过页面限制。
+        if ("admin".equals(employee.getUsername())) {
+            throw new BaseException("管理员账号不允许修改状态");
+        }
+        if (status.equals(employee.getStatus())) {
+            return;
+        }
+        Employee update = Employee.builder()
+                .id(id)
+                .status(status)
+                .updateTime(LocalDateTime.now())
+                .updateUser(operatorId)
+                .build();
+        // 查询后记录可能被删除或变为受保护账号，不能把未更新的情况当作成功。
+        if (employeeMapper.updateStatus(update) != 1) {
+            throw new BaseException("员工状态更新失败，请刷新后重试");
+        }
     }
 }
