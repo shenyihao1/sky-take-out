@@ -9,6 +9,7 @@ import com.sky.exception.BaseException;
 import com.sky.handler.GlobalExceptionHandler;
 import com.sky.mapper.EmployeeMapper;
 import com.sky.service.impl.EmployeeServiceImpl;
+import org.apache.ibatis.builder.xml.XMLMapperBuilder;
 import org.apache.ibatis.mapping.BoundSql;
 import org.apache.ibatis.mapping.MappedStatement;
 import org.apache.ibatis.scripting.defaults.DefaultParameterHandler;
@@ -24,9 +25,12 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.util.DigestUtils;
 
+import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.sql.PreparedStatement;
 import java.time.LocalDateTime;
+import java.util.Collections;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -192,8 +196,7 @@ class EmployeeStatusTest {
     @Test
     void mybatisBindsStatusAuditFieldsAndTargetId() throws Exception {
         // 验证真实 MyBatis 参数绑定；只更新状态与审计字段，避免覆盖员工其他资料。
-        Configuration configuration = new Configuration();
-        configuration.addMapper(EmployeeMapper.class);
+        Configuration configuration = mapperConfiguration();
         MappedStatement statement = configuration.getMappedStatement(
                 "com.sky.mapper.EmployeeMapper.updateStatus");
         Employee update = Employee.builder().id(7L).status(0).updateUser(1L)
@@ -209,5 +212,32 @@ class EmployeeStatusTest {
         assertTrue(sql.getSql().contains("username <> 'admin'"));
         assertFalse(sql.getSql().contains("password"));
         assertFalse(sql.getSql().contains("create_user"));
+    }
+
+    @Test
+    void xmlLookupBindsEmployeeIdWithoutReadingPassword() throws Exception {
+        Configuration configuration = mapperConfiguration();
+        MappedStatement statement = configuration.getMappedStatement("com.sky.mapper.EmployeeMapper.getById");
+        Map<String, Long> parameters = Collections.singletonMap("id", 7L);
+        BoundSql sql = statement.getBoundSql(parameters);
+        PreparedStatement preparedStatement = mock(PreparedStatement.class);
+        new DefaultParameterHandler(statement, parameters, sql).setParameters(preparedStatement);
+        verify(preparedStatement).setLong(1, 7L);
+        assertEquals(Employee.class, statement.getResultMaps().get(0).getType());
+        assertTrue(sql.getSql().contains("where id = ?"));
+        assertFalse(sql.getSql().contains("password"));
+    }
+
+    private Configuration mapperConfiguration() throws Exception {
+        // 按应用配置读取实际 XML，验证 namespace、方法 id 与参数绑定，防止仅测试注解。
+        Configuration configuration = new Configuration();
+        String resource = "mapper/EmployeeMapper.xml";
+        try (InputStream input = getClass().getClassLoader().getResourceAsStream(resource)) {
+            assertNotNull(input);
+            new XMLMapperBuilder(input, configuration, resource,
+                    configuration.getSqlFragments()).parse();
+        }
+        assertTrue(configuration.hasMapper(EmployeeMapper.class));
+        return configuration;
     }
 }

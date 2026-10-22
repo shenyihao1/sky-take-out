@@ -7,7 +7,6 @@ import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Param;
-import org.apache.ibatis.annotations.Update;
 
 @Mapper
 public interface EmployeeMapper {
@@ -36,16 +35,13 @@ public interface EmployeeMapper {
     Page<Employee> pageQuery(EmployeePageQueryDTO employeePageQueryDTO);
 
     /**
-     * 查询状态切换所需的账号信息，不读取密码。
+     * 查询状态切换所需的账号信息，不读取密码；SQL 定义在 EmployeeMapper.xml。
      */
-    @Select("select id, username, status from employee where id = #{id}")
     Employee getById(@Param("id") Long id);
 
     /**
-     * 只更新状态与审计字段，并在 SQL 层保护管理员账号。
+     * 只更新状态与审计字段；EmployeeMapper.xml 中的 SQL 同时保护管理员账号。
      * @return 匹配更新的记录数，用于判断操作是否成功
      */
-    @Update("update employee set status = #{status}, update_time = #{updateTime}, " +
-            "update_user = #{updateUser} where id = #{id} and username <> 'admin'")
     int updateStatus(Employee employee);
 }

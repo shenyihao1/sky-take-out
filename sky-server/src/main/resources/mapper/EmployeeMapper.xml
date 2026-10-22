@@ -13,4 +13,17 @@
         </where>
         order by create_time desc, id desc
     </select>
+    <!-- 状态切换只需要账号标识和状态，不查询密码。 -->
+    <select id="getById" resultType="com.sky.entity.Employee">
+        select id, username, status
+        from employee
+        where id = #{id}
+    </select>
+
+    <!-- 只更新状态和审计信息；在 SQL 层排除管理员账号。 -->
+    <update id="updateStatus" parameterType="com.sky.entity.Employee">
+        update employee
+        set status = #{status}, update_time = #{updateTime}, update_user = #{updateUser}
+        where id = #{id} and username &lt;&gt; 'admin'
+    </update>
 </mapper>
