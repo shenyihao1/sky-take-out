@@ -134,4 +134,42 @@ public class EmployeeServiceImpl implements EmployeeService {
             throw new BaseException("员工状态更新失败，请刷新后重试");
         }
     }
+
+    @Override
+    public Employee getById(Long id) {
+        if (id == null || id <= 0) {
+            throw new BaseException("员工ID必须为正整数");
+        }
+        Employee employee = employeeMapper.getById(id);
+        if (employee == null) {
+            throw new AccountNotFoundException(MessageConstant.ACCOUNT_NOT_FOUND);
+        }
+        employee.setPassword("*****");
+        return employee;
+    }
+
+    @Override
+    public void update(EmployeeDTO employeeDTO) {
+        Employee existing = getById(employeeDTO.getId());
+        Long operatorId = BaseContext.getCurrentId();
+        if (operatorId == null) {
+            throw new BaseException(MessageConstant.USER_NOT_LOGIN);
+        }
+        if ((employeeDTO.getUsername() != null && employeeDTO.getUsername().trim().isEmpty())
+                || (employeeDTO.getName() != null && employeeDTO.getName().trim().isEmpty())) {
+            throw new BaseException("员工账号和姓名不能为空");
+        }
+        // 保持管理员账号标识，避免绕过已有的管理员状态保护。
+        if ("admin".equals(existing.getUsername()) && employeeDTO.getUsername() != null
+                && !"admin".equals(employeeDTO.getUsername())) {
+            throw new BaseException("管理员账号不允许修改登录账号");
+        }
+        Employee employee = new Employee();
+        BeanUtils.copyProperties(employeeDTO, employee);
+        employee.setUpdateTime(LocalDateTime.now());
+        employee.setUpdateUser(operatorId);
+        if (employeeMapper.update(employee) != 1) {
+            throw new BaseException("员工信息更新失败，请刷新后重试");
+        }
+    }
 }

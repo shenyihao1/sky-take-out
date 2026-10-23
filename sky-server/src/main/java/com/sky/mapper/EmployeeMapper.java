@@ -35,7 +35,7 @@ public interface EmployeeMapper {
     Page<Employee> pageQuery(EmployeePageQueryDTO employeePageQueryDTO);
 
     /**
-     * 查询状态切换所需的账号信息，不读取密码；SQL 定义在 EmployeeMapper.xml。
+     * 查询员工资料，用于状态切换和编辑回显，不读取密码；SQL 定义在 EmployeeMapper.xml。
      */
     Employee getById(@Param("id") Long id);
 
@@ -44,4 +44,7 @@ public interface EmployeeMapper {
      * @return 匹配更新的记录数，用于判断操作是否成功
      */
     int updateStatus(Employee employee);
+
+    /** 只更新员工资料及操作信息。 */
+    int update(Employee employee);
 }

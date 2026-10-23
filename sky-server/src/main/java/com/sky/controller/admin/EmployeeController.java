@@ -19,6 +19,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -108,8 +109,7 @@ public class EmployeeController {
      */
     @PostMapping("/status/{status}")
     @ApiOperation("启用禁用员工账号")
-    public ResponseEntity<Result<String>> startOrStop(@PathVariable("status") Integer status,
-                                                     @RequestParam("id") Long id) {
+    public ResponseEntity<Result<String>> startOrStop(@PathVariable Integer status, Long id) {
         log.info("修改员工状态：id={}，status={}", id, status);
         try {
             employeeService.startOrStop(status, id);
@@ -118,5 +118,26 @@ public class EmployeeController {
             // 前端以 HTTP 200 判断成功，校验失败需返回非 200，避免误报状态修改成功。
             return ResponseEntity.badRequest().body(Result.<String>error(ex.getMessage()));
         }
+    }
+
+    /**
+     * 根据 ID 查询员工，用于编辑页面回显。
+     */
+    @GetMapping("/{id}")
+    @ApiOperation("根据ID查询员工")
+    public Result<Employee> getById(@PathVariable("id") Long id) {
+        log.info("查询员工信息：id={}", id);
+        return Result.success(employeeService.getById(id));
+    }
+
+    /**
+     * 编辑员工信息。
+     */
+    @PutMapping
+    @ApiOperation("编辑员工信息")
+    public Result<String> update(@RequestBody EmployeeDTO employeeDTO) {
+        log.info("编辑员工信息：id={}", employeeDTO.getId());
+        employeeService.update(employeeDTO);
+        return Result.success();
     }
 }

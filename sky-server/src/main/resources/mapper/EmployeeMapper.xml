@@ -13,9 +13,9 @@
         </where>
         order by create_time desc, id desc
     </select>
-    <!-- 状态切换只需要账号标识和状态，不查询密码。 -->
+    <!-- 编辑回显及状态切换使用，不查询密码。 -->
     <select id="getById" resultType="com.sky.entity.Employee">
-        select id, username, status
+        select id, username, name, phone, sex, id_number, status
         from employee
         where id = #{id}
     </select>
@@ -25,5 +25,19 @@
         update employee
         set status = #{status}, update_time = #{updateTime}, update_user = #{updateUser}
         where id = #{id} and username &lt;&gt; 'admin'
+    </update>
+    <!-- 编辑仅更新资料及操作信息，不修改密码、状态和创建信息。 -->
+    <update id="update" parameterType="com.sky.entity.Employee">
+        update employee
+        <set>
+            <if test="username != null">username = #{username},</if>
+            <if test="name != null">name = #{name},</if>
+            <if test="phone != null">phone = #{phone},</if>
+            <if test="sex != null">sex = #{sex},</if>
+            <if test="idNumber != null">id_number = #{idNumber},</if>
+            update_time = #{updateTime},
+            update_user = #{updateUser}
+        </set>
+        where id = #{id}
     </update>
 </mapper>
