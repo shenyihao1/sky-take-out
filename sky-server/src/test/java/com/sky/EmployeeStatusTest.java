@@ -1,6 +1,8 @@
 package com.sky;
 
 import com.sky.context.BaseContext;
+import com.sky.aspect.AutoFillAspect;
+import org.springframework.aop.aspectj.annotation.AspectJProxyFactory;
 import com.sky.controller.admin.EmployeeController;
 import com.sky.dto.EmployeeLoginDTO;
 import com.sky.entity.Employee;
@@ -54,7 +56,10 @@ class EmployeeStatusTest {
         BaseContext.setCurrentId(1L);
         mapper = mock(EmployeeMapper.class);
         service = new EmployeeServiceImpl();
-        ReflectionTestUtils.setField(service, "employeeMapper", mapper);
+        AspectJProxyFactory factory = new AspectJProxyFactory(mapper);
+        factory.setInterfaces(EmployeeMapper.class);
+        factory.addAspect(new AutoFillAspect());
+        ReflectionTestUtils.setField(service, "employeeMapper", factory.getProxy());
         EmployeeController controller = new EmployeeController();
         ReflectionTestUtils.setField(controller, "employeeService", service);
         mvc = MockMvcBuilders.standaloneSetup(controller)
