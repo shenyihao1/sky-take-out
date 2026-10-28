@@ -3,8 +3,8 @@
 ## 实现说明
 POST /admin/common/upload，multipart/form-data 的字段名为 file，沿用管理员 JWT 鉴权。
 Controller 修复 Result<string>、缺少 import 和空返回，改为 Result<String>。
-LocalUploadService 校验空文件、2MB 上限、扩展名及真实图片内容，限制像素数量，支持 JPG/JPEG/PNG/GIF。
-服务自动创建目录并使用随机文件名，不把客户端文件名拼入磁盘路径；失败时清理本次残留文件。
+LocalUploadService 检查空文件并截取文件后缀，支持 JPG/JPEG/PNG/GIF；仅按后缀判断类型，不解析图片内容。大小限制由下方 Spring multipart 配置控制。
+服务自动创建目录，使用 UUID + 后缀构建新文件名，通过 transferTo 保存文件，返回 Nginx 访问 URL；保存失败时抛出“文件上传失败”业务异常。
 成功返回 {"code":1,"msg":null,"data":"http://localhost/images/随机文件名.png"}。
 业务错误通过现有全局异常处理器返回 code=0。文件上传不写数据库，业务保存时再保存返回的 URL。
 
@@ -43,5 +43,5 @@ alias 必须和上传目录一致，末尾保留斜杠。base-url 必须是浏�
 ```bash
 curl -X POST http://localhost:8080/admin/common/upload -H "token: 替换为登录令牌" -F "file=@test.png"
 ```
-检查 data URL 能显示图片，并测试空文件、伪造图片、超限文件、同名多次上传。不要把上传目录提交到 Git。
+检查 data URL 能显示图片，并测试空文件、不支持的后缀、超限文件（配置 multipart 后）、同名多次上传。不要把上传目录提交到 Git。
 Spring multipart 超限在进入 Controller 前被拒绝；Nginx 超限返回 HTTP 413。
