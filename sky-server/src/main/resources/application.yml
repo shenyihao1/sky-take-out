@@ -6,6 +6,13 @@ spring:
     active: dev
   main:
     allow-circular-references: true
+  redis:
+    host: ${sky.redis.host}
+    port: ${sky.redis.port}
+    database: ${sky.redis.database}
+    password: ${sky.redis.password}
+    timeout: 5s
+    connect-timeout: 5s
   datasource:
     druid:
       driver-class-name: ${sky.datasource.driver-class-name}
